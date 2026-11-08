@@ -26,6 +26,8 @@ docker compose --profile modern down
 
 `data/content.json` 保留原站已公开的页面和文章内容；`assets/media/` 保留原媒体文件及 WordPress 已有的图片尺寸。原文、71 张相册图片和 5 个视频的顺序保持一致。视频标题与封面来自原有视频的 YouTube 元数据。YouTube 视频本体原先就不在 WordPress 中，本地保留的是链接与嵌入。
 
+文章同时保留正文图片和 WordPress 单独配置的特色图片，首页与文章页均显示，并支持原图下载。
+
 ```sh
 python3 scripts/build_site.py
 python3 scripts/check_site.py

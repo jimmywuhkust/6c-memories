@@ -240,10 +240,24 @@ def videos(current):
     return '<header class="page-heading video-heading"><h1 data-title="Video Gallery"><span>Video</span><em>Gallery</em></h1><span class="video-total" aria-hidden="true">01 — 05</span></header><div class="page-content video-grid">' + ''.join(cards) + '</div>'
 
 
+def featured_image(post, current):
+    identifier=(post.get('meta') or {}).get('_thumbnail_id')
+    if not identifier: return ''
+    attachment=POSTS[int(identifier)]
+    file=attachment['meta']['_wp_attached_file']
+    metadata=attachment['meta'].get('_wp_attachment_metadata')
+    if isinstance(metadata,dict):
+        size=metadata.get('sizes',{}).get('1536x1536') or metadata.get('sizes',{}).get('large')
+        if size: file=str(Path(file).parent/size['file'])
+    markup=f'<figure class="post-featured" data-featured-id="{identifier}"><img src="/wp-content/uploads/{html.escape(file)}" alt="" class="wp-image-{identifier}"></figure>'
+    parser=Rewriter(current); parser.feed(markup)
+    return ''.join(parser.result)
+
+
 def article(post, current, detail=False):
     link = rel(ROUTES[int(post['ID'])], current)
     date = datetime.fromisoformat(post['post_date']).strftime('%d %b %Y')
-    body = render_content(post, current)
+    body = featured_image(post, current) + render_content(post, current)
     heading = 'h1' if detail else 'h2'
     return f'''<article class="journal-entry" id="post-{post['ID']}">
 <header class="entry-heading"><time datetime="{post['post_date'][:10]}">{date}</time>

@@ -20,11 +20,13 @@ class Page(HTMLParser):
         self.text = []
         self.images = []
         self.embeds = []
+        self.featured = []
 
     def handle_data(self, value): self.text.append(value)
 
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
+        if tag == 'figure' and attrs.get('data-featured-id'): self.featured.append(attrs['data-featured-id'])
         if tag == 'img' and attrs.get('src') and 'data-decorative' not in attrs: self.images.append(attrs['src'])
         if tag == 'iframe': self.embeds.append(attrs.get('src'))
         if not self.path: return
@@ -60,7 +62,10 @@ for post in DATA['posts']:
     generated = (DIST / route).read_text()
     before = Page(); before.feed(post['post_content'])
     after = Page(); after.feed(generated)
-    if len(after.images) != len(before.images): ERRORS.append(f'Image count changed in {route}')
+    featured=(post.get('meta') or {}).get('_thumbnail_id') if kind=='post' else None
+    expected_images=len(before.images)+(1 if featured else 0)
+    if len(after.images) != expected_images: ERRORS.append(f'Image count changed in {route}: expected {expected_images}, got {len(after.images)}')
+    if after.featured != ([str(featured)] if featured else []): ERRORS.append(f'WordPress featured image missing in {route}')
     if post['post_name'] == 'say-something': continue
     if post['post_name'] == 'video-gallery':
         expected = re.findall(r'watch\?v=([A-Za-z0-9_-]{11})', post['post_content'])
@@ -70,6 +75,10 @@ for post in DATA['posts']:
     # Rewrite links before comparing visible words; URLs are not prose.
     raw = re.sub(r'<!--.*?-->', '', post['post_content'], flags=re.S)
     if text(raw) not in text(generated): ERRORS.append(f'Visible content changed in {route}')
+homepage = Page(); homepage.feed((DIST / 'index.html').read_text())
+articles = sorted([p for p in DATA['posts'] if p['post_type']=='post'], key=lambda p:p['post_date'], reverse=True)
+expected_home_features = [str(p['meta']['_thumbnail_id']) for p in articles if (p.get('meta') or {}).get('_thumbnail_id')]
+if homepage.featured != expected_home_features: ERRORS.append('Homepage featured images do not match the WordPress metadata')
 files = [p for p in DIST.rglob('*') if p.is_file()]
 for path in files:
     if path.stat().st_size >= 100 * 1024 * 1024: ERRORS.append(f'File exceeds GitHub limit: {path}')
