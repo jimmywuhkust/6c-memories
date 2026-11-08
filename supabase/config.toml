@@ -1,0 +1,2 @@
+[functions.sixc-guestbook]
+verify_jwt = false

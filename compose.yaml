@@ -1,0 +1,47 @@
+name: sixc-local
+services:
+  db_456c:
+    image: sixc-archive/mysql:20261108
+    platform: linux/amd64
+    env_file: local-wordpress/.env
+    volumes:
+      - ./local-wordpress/mysql:/var/lib/mysql
+      - ./local-wordpress/db-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_ROOT_PASSWORD" mysqladmin ping -h 127.0.0.1 -uroot --silent']
+      interval: 3s
+      timeout: 5s
+      retries: 60
+  wordpress:
+    image: sixc-archive/wordpress:20261108
+    platform: linux/amd64
+    env_file: local-wordpress/.env
+    depends_on:
+      db_456c:
+        condition: service_healthy
+    ports:
+      - 127.0.0.1:8086:80
+    networks:
+      - default
+      - preview
+    volumes:
+      - ./local-wordpress/html:/var/www/html
+      - ./local-wordpress/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+      - ./scripts/relocate.php:/opt/clone/relocate.php:ro
+  modern:
+    profiles: [modern]
+    image: python:3.12-alpine@sha256:e064671ca452259bab50e8e2c7bd896e39e9a343bb06ca25234adf6fe18d0fc7
+    working_dir: /app
+    command: [python, scripts/preview.py, --bind, 0.0.0.0]
+    ports:
+      - 127.0.0.1:8087:8087
+    volumes:
+      - ./dist:/app/dist:ro
+      - ./scripts/preview.py:/app/scripts/preview.py:ro
+      - ./private:/app/private
+    networks:
+      - preview
+networks:
+  default:
+    internal: true
+  preview: {}
